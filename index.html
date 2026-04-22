@@ -6,105 +6,268 @@
 <title>Rompecabezas Deslizante</title>
 
 <style>
-body { font-family: Arial; background:#1e1e2f; color:white; text-align:center;}
-button {padding:10px; margin:10px; border:none; border-radius:10px; background:#ff4757; color:white; cursor:pointer;}
-#board {display:grid; gap:5px; justify-content:center; margin-top:20px;}
-.tile {width:70px;height:70px;background:white;color:black;display:flex;justify-content:center;align-items:center;border-radius:10px;cursor:pointer;}
-.empty {background:transparent;cursor:default;}
+body {
+    font-family: Arial;
+    background:#1e1e2f;
+    color:white;
+    text-align:center;
+}
+
+#board {
+    display:grid;
+    gap:5px;
+    margin-top:20px;
+    justify-content:center;
+}
+
+.tile {
+    width:70px;height:70px;
+    background:white;color:black;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    border-radius:10px;
+    cursor:pointer;
+}
+
+.empty {background:transparent;}
+
+.mini-board {
+    display:grid;
+    gap:2px;
+    justify-content:center;
+    margin-top:10px;
+}
+
+.mini-tile {
+    width:25px;height:25px;
+    background:#fff;
+    color:#000;
+    font-size:10px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+button, select {
+    padding:10px;
+    margin:10px;
+    border:none;
+    border-radius:10px;
+    background:#ff4757;
+    color:white;
+    cursor:pointer;
+}
 </style>
 </head>
 
 <body>
 
-<h1>Rompecabezas</h1>
+<h1>🧩 Rompecabezas Deslizante</h1>
 
 <div id="menu">
-<button onclick="startGame(3)">3x3</button>
-<button onclick="startGame(4)">4x4</button>
-<button onclick="startGame(5)">5x5</button>
+    <h2>Selecciona dificultad</h2>
+    <button onclick="startGame(3)">3x3</button>
+    <button onclick="startGame(4)">4x4</button>
+    <button onclick="startGame(5)">5x5</button>
 </div>
 
 <div id="game" style="display:none;">
-<button onclick="goMenu()">Volver</button>
+<button onclick="goMenu()">⬅ Volver</button>
+
 <div id="board"></div>
+
 <p>Movimientos: <span id="moves">0</span></p>
+<p>Tiempo: <span id="timer">00:00</span></p>
+
+<!-- 🔽 NUEVO MENÚ -->
+<div>
+    <label>Ver posibles órdenes:</label><br>
+    <select onchange="showPattern(this.value)">
+        <option value="">Selecciona una opción</option>
+        <option value="normal">Izq → Der</option>
+        <option value="reverse">Der → Izq</option>
+        <option value="vertical">Arriba → Abajo</option>
+        <option value="verticalReverse">Abajo → Arriba</option>
+    </select>
+
+    <div id="patternPreview"></div>
+</div>
+
 </div>
 
 <script>
 let size, board=[], moves;
+let timerInterval, seconds=0;
+let patternsData={};
 
 function startGame(n){
-size=n; moves=0;
-document.getElementById("moves").textContent=0;
-menu.style.display="none"; game.style.display="block";
-createBoard();
+    size=n;
+    moves=0;
+    seconds=0;
+    movesEl.textContent=0;
+    menu.style.display="none";
+    game.style.display="block";
+    createBoard();
+    generatePatterns();
+    startTimer();
 }
 
-function goMenu(){menu.style.display="block"; game.style.display="none";}
+function goMenu(){
+    menu.style.display="block";
+    game.style.display="none";
+    stopTimer();
+}
 
 function createBoard(){
-board=[];
-for(let i=1;i<size*size;i++) board.push(i);
-board.push(0);
-shuffle(board);
-draw();
+    board=[];
+    for(let i=1;i<size*size;i++) board.push(i);
+    board.push(0);
+    shuffle(board);
+    draw();
 }
 
 function draw(){
-boardEl.innerHTML="";
-boardEl.style.gridTemplateColumns=`repeat(${size},70px)`;
-board.forEach((n,i)=>{
-let d=document.createElement("div");
-d.className="tile";
-if(n===0){d.classList.add("empty");}
-else{d.textContent=n; d.onclick=()=>move(i);}
-boardEl.appendChild(d);
-});
+    boardEl.innerHTML="";
+    boardEl.style.gridTemplateColumns=`repeat(${size},70px)`;
+
+    board.forEach((n,i)=>{
+        let d=document.createElement("div");
+        d.className="tile";
+        if(n===0){d.classList.add("empty");}
+        else{d.textContent=n; d.onclick=()=>move(i);}
+        boardEl.appendChild(d);
+    });
 }
 
 function move(i){
-let e=board.indexOf(0);
-let valid=[i-1,i+1,i-size,i+size];
-if(valid.includes(e)&&!(i%size===0&&e===i-1)&&!(i%size===size-1&&e===i+1)){
-[board[i],board[e]]=[board[e],board[i]];
-moves++; movesEl.textContent=moves;
-draw(); checkWin();
-}
+    let e=board.indexOf(0);
+    let valid=[i-1,i+1,i-size,i+size];
+
+    if(valid.includes(e)&&!(i%size===0&&e===i-1)&&!(i%size===size-1&&e===i+1)){
+        [board[i],board[e]]=[board[e],board[i]];
+        moves++;
+        movesEl.textContent=moves;
+        draw();
+        checkWin();
+    }
 }
 
 function shuffle(a){
-do{
-for(let i=a.length-1;i>0;i--){
-let j=Math.floor(Math.random()*(i+1));
-[a[i],a[j]]=[a[j],a[i]];
-}
-}while(!solvable(a));
+    do{
+        for(let i=a.length-1;i>0;i--){
+            let j=Math.floor(Math.random()*(i+1));
+            [a[i],a[j]]=[a[j],a[i]];
+        }
+    }while(!solvable(a));
 }
 
 function solvable(a){
-let inv=0;
-for(let i=0;i<a.length;i++){
-for(let j=i+1;j<a.length;j++){
-if(a[i]&&a[j]&&a[i]>a[j]) inv++;
-}}
-if(size%2!==0) return inv%2===0;
-let row=Math.floor(a.indexOf(0)/size);
-return (inv+row)%2!==0;
+    let inv=0;
+    for(let i=0;i<a.length;i++){
+        for(let j=i+1;j<a.length;j++){
+            if(a[i]&&a[j]&&a[i]>a[j]) inv++;
+        }
+    }
+    if(size%2!==0) return inv%2===0;
+    let row=Math.floor(a.indexOf(0)/size);
+    return (inv+row)%2!==0;
 }
 
 function checkWin(){
-for(let i=0;i<board.length-1;i++){
-if(board[i]!==i+1) return;
+    for(let i=0;i<board.length-1;i++){
+        if(board[i]!==i+1) return;
+    }
+    stopTimer();
+    setTimeout(()=>{
+        alert("🎉 Ganaste en " + moves + " movimientos y " +
+        document.getElementById("timer").textContent);
+    },100);
 }
-setTimeout(()=>alert("Ganaste en "+moves+" movimientos"),100);
+
+/* TIMER */
+function startTimer(){
+    clearInterval(timerInterval);
+    seconds=0;
+    updateTimer();
+    timerInterval=setInterval(()=>{
+        seconds++;
+        updateTimer();
+    },1000);
+}
+
+function stopTimer(){
+    clearInterval(timerInterval);
+}
+
+function updateTimer(){
+    let min=Math.floor(seconds/60);
+    let sec=seconds%60;
+    document.getElementById("timer").textContent =
+        String(min).padStart(2,'0') + ":" +
+        String(sec).padStart(2,'0');
+}
+
+/* PATRONES */
+function generatePatterns(){
+    let total=size*size;
+
+    let normal=[];
+    for(let i=1;i<total;i++) normal.push(i);
+
+    let reverse=[];
+    for(let i=total-1;i>=1;i--) reverse.push(i);
+
+    let vertical=[];
+    for(let col=0;col<size;col++){
+        for(let row=0;row<size;row++){
+            let num=row*size+col+1;
+            if(num<total) vertical.push(num);
+        }
+    }
+
+    let verticalReverse=[];
+    for(let col=size-1;col>=0;col--){
+        for(let row=size-1;row>=0;row--){
+            let num=row*size+col+1;
+            if(num<total) verticalReverse.push(num);
+        }
+    }
+
+    patternsData = {
+        normal,
+        reverse,
+        vertical,
+        verticalReverse
+    };
+}
+
+function showPattern(type){
+    if(!type) return;
+
+    let data = patternsData[type];
+    patternPreview.innerHTML="";
+
+    let div=document.createElement("div");
+    div.className="mini-board";
+    div.style.gridTemplateColumns=`repeat(${size},25px)`;
+
+    [...data,0].forEach(n=>{
+        let t=document.createElement("div");
+        t.className="mini-tile";
+        if(n!==0) t.textContent=n;
+        div.appendChild(t);
+    });
+
+    patternPreview.appendChild(div);
 }
 
 const boardEl=document.getElementById("board");
 const movesEl=document.getElementById("moves");
 const menu=document.getElementById("menu");
 const game=document.getElementById("game");
+const patternPreview=document.getElementById("patternPreview");
 </script>
 
 </body>
 </html>
-
