@@ -11,82 +11,85 @@ body {
     background:#1e1e2f;
     color:white;
     text-align:center;
+    margin:0;
+    padding:10px;
 }
 
+/* TABLERO */
 #board {
     display:grid;
-    gap:5px;
-    margin-top:20px;
-    justify-content:center;
+    width:90vw;
+    max-width:520px;
+    margin:20px auto;
+    gap:2px;
+
+    touch-action:none;
+    transform-origin:center center;
 }
 
+/* PIEZAS */
 .tile {
+    aspect-ratio:1/1;
     background:white;
     color:black;
     display:flex;
     justify-content:center;
     align-items:center;
-    border-radius:10px;
-    cursor:pointer;
+    border-radius:4px;
     font-weight:bold;
+    cursor:pointer;
+    font-size:clamp(8px,2.5vw,18px);
 }
 
 .empty {
     background:transparent;
-    cursor:default;
 }
 
+/* BOTONES */
 button {
     padding:10px;
-    margin:5px;
+    margin:4px;
     border:none;
-    border-radius:10px;
+    border-radius:8px;
     background:#ff4757;
     color:white;
     cursor:pointer;
+    width:90%;
+    max-width:260px;
 }
 
-/* referencia */
-.reference {
-    margin-top:20px;
-}
-
-.mini-board {
-    display:grid;
-    gap:2px;
-    justify-content:center;
-    margin-top:10px;
-}
-
-.mini-tile {
-    width:20px;height:20px;
-    background:#fff;
-    color:#000;
-    font-size:9px;
-    display:flex;
-    justify-content:center;
-    align-items:center;
+@media(min-width:600px){
+    button{ width:auto; }
 }
 </style>
 </head>
 
 <body>
 
-<h1>🧩 Rompecabezas Deslizante</h1>
+<h2>🧩 Rompecabezas Deslizante</h2>
 
 <div id="menu">
-    <h2>Selecciona dificultad</h2>
+    <p>Selecciona dificultad</p>
 
-    <!-- NUEVAS DIFICULTADES -->
+    <!-- hasta 20x20 -->
     <button onclick="startGame(3)">3x3</button>
     <button onclick="startGame(4)">4x4</button>
     <button onclick="startGame(5)">5x5</button>
-    <br>
     <button onclick="startGame(6)">6x6</button>
     <button onclick="startGame(7)">7x7</button>
     <button onclick="startGame(8)">8x8</button>
     <button onclick="startGame(9)">9x9</button>
     <button onclick="startGame(10)">10x10</button>
+    <button onclick="startGame(11)">11x11</button>
+    <button onclick="startGame(12)">12x12</button>
+    <button onclick="startGame(13)">13x13</button>
+    <button onclick="startGame(14)">14x14</button>
+    <button onclick="startGame(15)">15x15</button>
+    <button onclick="startGame(16)">16x16</button>
+    <button onclick="startGame(17)">17x17</button>
+    <button onclick="startGame(18)">18x18</button>
+    <button onclick="startGame(19)">19x19</button>
+    <button onclick="startGame(20)">20x20 🔥</button>
 </div>
 
 <div id="game" style="display:none;">
@@ -97,8 +100,8 @@ button {
     <p>Movimientos: <span id="moves">0</span></p>
     <p>Tiempo: <span id="timer">00:00</span></p>
 
-    <div class="reference">
-        <p>Referencia de solución:</p>
+    <div>
+        <p>Referencia:</p>
         <div id="solutionPreview"></div>
     </div>
 </div>
@@ -107,21 +110,87 @@ button {
 let size, board=[], moves;
 let timerInterval, seconds=0;
 
-/* 🔥 AJUSTE AUTOMÁTICO DE TAMAÑO */
-function getTileSize(){
-    if(size <= 4) return 70;
-    if(size <= 6) return 60;
-    if(size <= 8) return 45;
-    return 35;
+/* ZOOM */
+let scale=1, startDist=0;
+let currentX=0, currentY=0;
+let lastX=0, lastY=0;
+let isDragging=false;
+
+const boardEl=document.getElementById("board");
+
+function getDistance(t){
+    let dx=t[0].clientX-t[1].clientX;
+    let dy=t[0].clientY-t[1].clientY;
+    return Math.sqrt(dx*dx+dy*dy);
 }
 
+boardEl.addEventListener("touchstart",(e)=>{
+    if(e.touches.length===2){
+        startDist=getDistance(e.touches);
+    }
+    if(e.touches.length===1){
+        isDragging=true;
+        lastX=e.touches[0].clientX;
+        lastY=e.touches[0].clientY;
+    }
+});
+
+boardEl.addEventListener("touchmove",(e)=>{
+    e.preventDefault();
+
+    if(e.touches.length===2){
+        let newDist=getDistance(e.touches);
+        let zoom=newDist/startDist;
+
+        scale*=zoom;
+        scale=Math.max(1,Math.min(scale,4));
+        startDist=newDist;
+
+        applyTransform();
+    }
+
+    if(e.touches.length===1 && isDragging){
+        let dx=e.touches[0].clientX-lastX;
+        let dy=e.touches[0].clientY-lastY;
+
+        currentX+=dx;
+        currentY+=dy;
+
+        lastX=e.touches[0].clientX;
+        lastY=e.touches[0].clientY;
+
+        applyTransform();
+    }
+});
+
+boardEl.addEventListener("touchend",()=>{
+    isDragging=false;
+});
+
+function applyTransform(){
+    boardEl.style.transform =
+        `translate(${currentX}px,${currentY}px) scale(${scale})`;
+}
+
+function resetZoom(){
+    scale=1;
+    currentX=0;
+    currentY=0;
+    boardEl.style.transform="translate(0,0) scale(1)";
+}
+
+/* JUEGO */
 function startGame(n){
     size=n;
     moves=0;
     seconds=0;
+
+    resetZoom();
     movesEl.textContent=0;
+
     menu.style.display="none";
     game.style.display="block";
+
     createBoard();
     drawSolution();
     startTimer();
@@ -143,17 +212,11 @@ function createBoard(){
 
 function draw(){
     boardEl.innerHTML="";
-    let tileSize = getTileSize();
-
-    boardEl.style.gridTemplateColumns=`repeat(${size},${tileSize}px)`;
+    boardEl.style.gridTemplateColumns=`repeat(${size},1fr)`;
 
     board.forEach((n,i)=>{
         let d=document.createElement("div");
         d.className="tile";
-
-        d.style.width=tileSize+"px";
-        d.style.height=tileSize+"px";
-        d.style.fontSize=(tileSize/3)+"px";
 
         if(n===0){
             d.classList.add("empty");
@@ -210,8 +273,7 @@ function checkWin(){
     stopTimer();
 
     setTimeout(()=>{
-        alert("🎉 ¡Ganaste!\nMovimientos: " + moves + 
-              "\nTiempo: " + document.getElementById("timer").textContent);
+        alert("🎉 Ganaste\nMovimientos: "+moves+"\nTiempo: "+timer.textContent);
     },100);
 }
 
@@ -235,39 +297,47 @@ function updateTimer(){
     let min=Math.floor(seconds/60);
     let sec=seconds%60;
 
-    document.getElementById("timer").textContent =
-        String(min).padStart(2,'0') + ":" +
-        String(sec).padStart(2,'0');
+    timer.textContent =
+        String(min).padStart(2,'0')+":"+String(sec).padStart(2,'0');
 }
 
-/* SOLUCIÓN VISUAL */
+/* REFERENCIA */
 function drawSolution(){
     solutionPreview.innerHTML="";
 
     let div=document.createElement("div");
-    div.className="mini-board";
-    div.style.gridTemplateColumns=`repeat(${size},20px)`;
+    div.style.display="grid";
+    div.style.gridTemplateColumns=`repeat(${size},10px)`;
+    div.style.gap="1px";
+    div.style.justifyContent="center";
 
     for(let i=1;i<size*size;i++){
         let t=document.createElement("div");
-        t.className="mini-tile";
+        t.style.width="10px";
+        t.style.height="10px";
+        t.style.background="#fff";
+        t.style.fontSize="6px";
+        t.style.color="#000";
+        t.style.display="flex";
+        t.style.alignItems="center";
+        t.style.justifyContent="center";
         t.textContent=i;
         div.appendChild(t);
     }
 
     let empty=document.createElement("div");
-    empty.className="mini-tile";
-    empty.style.background="transparent";
+    empty.style.width="10px";
+    empty.style.height="10px";
     div.appendChild(empty);
 
     solutionPreview.appendChild(div);
 }
 
 /* ELEMENTOS */
-const boardEl=document.getElementById("board");
 const movesEl=document.getElementById("moves");
 const menu=document.getElementById("menu");
 const game=document.getElementById("game");
+const timer=document.getElementById("timer");
 const solutionPreview=document.getElementById("solutionPreview");
 </script>
 
